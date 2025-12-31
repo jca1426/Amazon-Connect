@@ -2,7 +2,7 @@ pipeline {
     agent any
     environment {
         AWS_REGION = 'us-west-2'
-        LAMBDA_FUNCTION = 'import-json'
+        LAMBDA_FUNCTION = 'OrderStatusFunc'
         CONNECT_INSTANCE_ID = '5b494e85-ab6a-45ca-94f5-5e645ee1a7e3'  // UPDATE THIS WITH YOUR REAL INSTANCE ID!
         PATH = "/usr/local/bin:/opt/homebrew/bin:${env.PATH}"
     }
