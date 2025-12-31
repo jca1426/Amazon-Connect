@@ -1,0 +1,231 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "505f8a29-232e-4274-ab55-c98fac3b8bdc",
+  "Metadata": {
+    "entryPointPosition": {
+      "x": -148.8,
+      "y": 85.6
+    },
+    "ActionMetadata": {
+      "a044c918-35b7-461d-a8bf-f2b6d1b993e4": {
+        "position": {
+          "x": 223.2,
+          "y": 468
+        }
+      },
+      "7d62827a-df02-4448-ab90-895fd0e86036": {
+        "position": {
+          "x": 500.8,
+          "y": 76
+        },
+        "parameters": {
+          "ContactFlowId": {
+            "displayName": "JCATechCo - Sales Flow"
+          }
+        },
+        "ContactFlow": {
+          "text": "JCATechCo - Sales Flow"
+        }
+      },
+      "bc7ce6b2-a03f-446a-8d72-f8f1511612f3": {
+        "position": {
+          "x": 501.6,
+          "y": 262.4
+        },
+        "parameters": {
+          "ContactFlowId": {
+            "displayName": "JCATechCo - Technical Support Flow"
+          }
+        },
+        "ContactFlow": {
+          "text": "JCATechCo - Technical Support Flow"
+        }
+      },
+      "6ae7f0c9-63c8-4943-8649-37e45f7d06f4": {
+        "position": {
+          "x": 764.8,
+          "y": 291.2
+        }
+      },
+      "8fbafb64-ce45-4659-991d-9cf36132648e": {
+        "position": {
+          "x": 498.4,
+          "y": 449.6
+        },
+        "parameters": {
+          "ContactFlowId": {
+            "displayName": "JCATechCo - Order Status"
+          }
+        },
+        "ContactFlow": {
+          "text": "JCATechCo - Order Status"
+        }
+      },
+      "8991dffe-b961-4652-ac00-40c8aeb71b4c": {
+        "position": {
+          "x": 212.8,
+          "y": 116
+        },
+        "conditionMetadata": [
+          {
+            "id": "692a2ccb-44bd-471d-bbca-0ea1fe1a9e39",
+            "value": "1"
+          },
+          {
+            "id": "6d4aa199-0392-49aa-951e-8c35d2ec1263",
+            "value": "2"
+          },
+          {
+            "id": "fa209e6a-124e-4211-a4b9-78c0ee8e20df",
+            "value": "3"
+          }
+        ]
+      },
+      "505f8a29-232e-4274-ab55-c98fac3b8bdc": {
+        "position": {
+          "x": -33.6,
+          "y": 72.8
+        }
+      }
+    },
+    "Annotations": [],
+    "name": "JCAtechco - Main Flow",
+    "description": "",
+    "type": "contactFlow",
+    "status": "PUBLISHED",
+    "hash": {}
+  },
+  "Actions": [
+    {
+      "Parameters": {},
+      "Identifier": "a044c918-35b7-461d-a8bf-f2b6d1b993e4",
+      "Type": "DisconnectParticipant",
+      "Transitions": {}
+    },
+    {
+      "Parameters": {
+        "ContactFlowId": "arn:aws:connect:us-west-2:292335388446:instance/5b494e85-ab6a-45ca-94f5-5e645ee1a7e3/contact-flow/ee95c38b-8fd4-445c-a81c-9f4bc87ac85f"
+      },
+      "Identifier": "7d62827a-df02-4448-ab90-895fd0e86036",
+      "Type": "TransferToFlow",
+      "Transitions": {
+        "NextAction": "6ae7f0c9-63c8-4943-8649-37e45f7d06f4",
+        "Errors": [
+          {
+            "NextAction": "6ae7f0c9-63c8-4943-8649-37e45f7d06f4",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "ContactFlowId": "arn:aws:connect:us-west-2:292335388446:instance/5b494e85-ab6a-45ca-94f5-5e645ee1a7e3/contact-flow/e9230b54-e5db-4b18-8efd-daf3a9452790"
+      },
+      "Identifier": "bc7ce6b2-a03f-446a-8d72-f8f1511612f3",
+      "Type": "TransferToFlow",
+      "Transitions": {
+        "NextAction": "6ae7f0c9-63c8-4943-8649-37e45f7d06f4",
+        "Errors": [
+          {
+            "NextAction": "6ae7f0c9-63c8-4943-8649-37e45f7d06f4",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {},
+      "Identifier": "6ae7f0c9-63c8-4943-8649-37e45f7d06f4",
+      "Type": "DisconnectParticipant",
+      "Transitions": {}
+    },
+    {
+      "Parameters": {
+        "ContactFlowId": "arn:aws:connect:us-west-2:292335388446:instance/5b494e85-ab6a-45ca-94f5-5e645ee1a7e3/contact-flow/12d24e45-fc26-49e4-a9e7-f6e12c5c9d57"
+      },
+      "Identifier": "8fbafb64-ce45-4659-991d-9cf36132648e",
+      "Type": "TransferToFlow",
+      "Transitions": {
+        "NextAction": "6ae7f0c9-63c8-4943-8649-37e45f7d06f4",
+        "Errors": [
+          {
+            "NextAction": "6ae7f0c9-63c8-4943-8649-37e45f7d06f4",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "StoreInput": "False",
+        "InputTimeLimitSeconds": "5",
+        "Text": "For Sales Press 1\nFor Technical Support Press 2\nFor Order Status press 3"
+      },
+      "Identifier": "8991dffe-b961-4652-ac00-40c8aeb71b4c",
+      "Type": "GetParticipantInput",
+      "Transitions": {
+        "NextAction": "a044c918-35b7-461d-a8bf-f2b6d1b993e4",
+        "Conditions": [
+          {
+            "NextAction": "7d62827a-df02-4448-ab90-895fd0e86036",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "1"
+              ]
+            }
+          },
+          {
+            "NextAction": "bc7ce6b2-a03f-446a-8d72-f8f1511612f3",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "2"
+              ]
+            }
+          },
+          {
+            "NextAction": "8fbafb64-ce45-4659-991d-9cf36132648e",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "3"
+              ]
+            }
+          }
+        ],
+        "Errors": [
+          {
+            "NextAction": "a044c918-35b7-461d-a8bf-f2b6d1b993e4",
+            "ErrorType": "InputTimeLimitExceeded"
+          },
+          {
+            "NextAction": "a044c918-35b7-461d-a8bf-f2b6d1b993e4",
+            "ErrorType": "NoMatchingCondition"
+          },
+          {
+            "NextAction": "a044c918-35b7-461d-a8bf-f2b6d1b993e4",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "Text": "Welcome to JCA Tech Company!"
+      },
+      "Identifier": "505f8a29-232e-4274-ab55-c98fac3b8bdc",
+      "Type": "MessageParticipant",
+      "Transitions": {
+        "NextAction": "8991dffe-b961-4652-ac00-40c8aeb71b4c",
+        "Errors": [
+          {
+            "NextAction": "6ae7f0c9-63c8-4943-8649-37e45f7d06f4",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    }
+  ]
+}

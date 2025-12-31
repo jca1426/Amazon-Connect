@@ -1,0 +1,86 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "cdc77b71-4bfb-4f29-addc-4e5d4b3bf616",
+  "Metadata": {
+    "entryPointPosition": {
+      "x": 40,
+      "y": 40
+    },
+    "ActionMetadata": {
+      "9ab11b47-fd48-4435-9b4c-43ee729fef4a": {
+        "position": {
+          "x": 618.4,
+          "y": 96
+        }
+      },
+      "65af4645-a6e9-449e-89f5-846f84b000ac": {
+        "position": {
+          "x": 392,
+          "y": 68
+        }
+      },
+      "cdc77b71-4bfb-4f29-addc-4e5d4b3bf616": {
+        "position": {
+          "x": 157.6,
+          "y": 48.8
+        },
+        "parameters": {
+          "QueueId": {
+            "displayName": "Sales Queue"
+          }
+        },
+        "queue": {
+          "text": "Sales Queue"
+        }
+      }
+    },
+    "Annotations": [],
+    "name": "JCATechCo - Sales Flow",
+    "description": "",
+    "type": "contactFlow",
+    "status": "PUBLISHED",
+    "hash": {}
+  },
+  "Actions": [
+    {
+      "Parameters": {},
+      "Identifier": "9ab11b47-fd48-4435-9b4c-43ee729fef4a",
+      "Type": "DisconnectParticipant",
+      "Transitions": {}
+    },
+    {
+      "Parameters": {},
+      "Identifier": "65af4645-a6e9-449e-89f5-846f84b000ac",
+      "Type": "TransferContactToQueue",
+      "Transitions": {
+        "NextAction": "9ab11b47-fd48-4435-9b4c-43ee729fef4a",
+        "Errors": [
+          {
+            "NextAction": "9ab11b47-fd48-4435-9b4c-43ee729fef4a",
+            "ErrorType": "QueueAtCapacity"
+          },
+          {
+            "NextAction": "9ab11b47-fd48-4435-9b4c-43ee729fef4a",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "QueueId": "arn:aws:connect:us-west-2:292335388446:instance/5b494e85-ab6a-45ca-94f5-5e645ee1a7e3/queue/e2c375b9-81b6-4879-8c4c-c92f4cdc9627"
+      },
+      "Identifier": "cdc77b71-4bfb-4f29-addc-4e5d4b3bf616",
+      "Type": "UpdateContactTargetQueue",
+      "Transitions": {
+        "NextAction": "65af4645-a6e9-449e-89f5-846f84b000ac",
+        "Errors": [
+          {
+            "NextAction": "9ab11b47-fd48-4435-9b4c-43ee729fef4a",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,148 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "b2081aa7-2320-466c-8e7b-01252a7dac79",
+  "Metadata": {
+    "entryPointPosition": {
+      "x": 40,
+      "y": 40
+    },
+    "ActionMetadata": {
+      "b2081aa7-2320-466c-8e7b-01252a7dac79": {
+        "position": {
+          "x": 139.2,
+          "y": 56.8
+        },
+        "parameters": {
+          "QueueId": {
+            "displayName": "Technical Queue"
+          }
+        },
+        "queue": {
+          "text": "Technical Queue"
+        }
+      },
+      "1f1117c6-d79f-4775-a3e2-2214c9062b74": {
+        "position": {
+          "x": 605.6,
+          "y": 55.2
+        }
+      },
+      "56b10ea0-3875-497e-b3a7-9ade01fecc5c": {
+        "position": {
+          "x": 914.4,
+          "y": 164.8
+        }
+      },
+      "c3ba3201-6cda-441c-94f0-dd6d540a2067": {
+        "position": {
+          "x": 610.4,
+          "y": 308
+        }
+      },
+      "f07200f0-ce13-4574-b0a8-04008361ed12": {
+        "position": {
+          "x": 346.4,
+          "y": 60.8
+        }
+      }
+    },
+    "Annotations": [],
+    "name": "JCATechCo - Technical Support Flow",
+    "description": "",
+    "type": "contactFlow",
+    "status": "PUBLISHED",
+    "hash": {}
+  },
+  "Actions": [
+    {
+      "Parameters": {
+        "QueueId": "arn:aws:connect:us-west-2:292335388446:instance/5b494e85-ab6a-45ca-94f5-5e645ee1a7e3/queue/5b940ba9-027c-43e1-b7c8-e9ba4a12d4b3"
+      },
+      "Identifier": "b2081aa7-2320-466c-8e7b-01252a7dac79",
+      "Type": "UpdateContactTargetQueue",
+      "Transitions": {
+        "NextAction": "f07200f0-ce13-4574-b0a8-04008361ed12",
+        "Errors": [
+          {
+            "NextAction": "56b10ea0-3875-497e-b3a7-9ade01fecc5c",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {},
+      "Identifier": "1f1117c6-d79f-4775-a3e2-2214c9062b74",
+      "Type": "TransferContactToQueue",
+      "Transitions": {
+        "NextAction": "56b10ea0-3875-497e-b3a7-9ade01fecc5c",
+        "Errors": [
+          {
+            "NextAction": "56b10ea0-3875-497e-b3a7-9ade01fecc5c",
+            "ErrorType": "QueueAtCapacity"
+          },
+          {
+            "NextAction": "56b10ea0-3875-497e-b3a7-9ade01fecc5c",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {},
+      "Identifier": "56b10ea0-3875-497e-b3a7-9ade01fecc5c",
+      "Type": "DisconnectParticipant",
+      "Transitions": {}
+    },
+    {
+      "Parameters": {
+        "Text": "Sorry, we are closed now. Please call us 9 AM to 5 PM, on weekdays"
+      },
+      "Identifier": "c3ba3201-6cda-441c-94f0-dd6d540a2067",
+      "Type": "MessageParticipant",
+      "Transitions": {
+        "NextAction": "56b10ea0-3875-497e-b3a7-9ade01fecc5c",
+        "Errors": [
+          {
+            "NextAction": "56b10ea0-3875-497e-b3a7-9ade01fecc5c",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {},
+      "Identifier": "f07200f0-ce13-4574-b0a8-04008361ed12",
+      "Type": "CheckHoursOfOperation",
+      "Transitions": {
+        "NextAction": "56b10ea0-3875-497e-b3a7-9ade01fecc5c",
+        "Conditions": [
+          {
+            "NextAction": "1f1117c6-d79f-4775-a3e2-2214c9062b74",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "True"
+              ]
+            }
+          },
+          {
+            "NextAction": "c3ba3201-6cda-441c-94f0-dd6d540a2067",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "False"
+              ]
+            }
+          }
+        ],
+        "Errors": [
+          {
+            "NextAction": "56b10ea0-3875-497e-b3a7-9ade01fecc5c",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    }
+  ]
+}

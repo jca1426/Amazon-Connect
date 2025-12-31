@@ -1,0 +1,132 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "bcbedda9-e7fe-4ae5-b5ba-cdb507faf36c",
+  "Metadata": {
+    "entryPointPosition": {
+      "x": 40,
+      "y": 40
+    },
+    "ActionMetadata": {
+      "bcbedda9-e7fe-4ae5-b5ba-cdb507faf36c": {
+        "position": {
+          "x": 140,
+          "y": 21.6
+        },
+        "conditionMetadata": [],
+        "countryCodePrefix": "+1"
+      },
+      "78d06790-5edd-438b-8176-45eea2c0c99c": {
+        "position": {
+          "x": 385.6,
+          "y": 264.8
+        }
+      },
+      "1baff22a-7fae-4c42-a8bf-b77d00a50e72": {
+        "position": {
+          "x": 363.2,
+          "y": 20
+        },
+        "parameters": {
+          "LambdaFunctionARN": {
+            "displayName": "OrderStatusFunc"
+          },
+          "LambdaInvocationAttributes": {
+            "OrderNo": {
+              "useDynamic": true
+            }
+          }
+        },
+        "dynamicMetadata": {
+          "OrderNo": true
+        }
+      },
+      "836b1932-64db-4db1-8fb3-2e088f092f1b": {
+        "position": {
+          "x": 574.4,
+          "y": 46.4
+        }
+      }
+    },
+    "Annotations": [],
+    "name": "JCATechCo - Order Status",
+    "description": "",
+    "type": "contactFlow",
+    "status": "PUBLISHED",
+    "hash": {}
+  },
+  "Actions": [
+    {
+      "Parameters": {
+        "StoreInput": "True",
+        "InputTimeLimitSeconds": "5",
+        "Text": "Please Key in Order Number, followed by the pound key.",
+        "DTMFConfiguration": {
+          "DisableCancelKey": "False",
+          "InterdigitTimeLimitSeconds": "5"
+        },
+        "InputValidation": {
+          "CustomValidation": {
+            "MaximumLength": "20"
+          }
+        }
+      },
+      "Identifier": "bcbedda9-e7fe-4ae5-b5ba-cdb507faf36c",
+      "Type": "GetParticipantInput",
+      "Transitions": {
+        "NextAction": "1baff22a-7fae-4c42-a8bf-b77d00a50e72",
+        "Errors": [
+          {
+            "NextAction": "78d06790-5edd-438b-8176-45eea2c0c99c",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {},
+      "Identifier": "78d06790-5edd-438b-8176-45eea2c0c99c",
+      "Type": "DisconnectParticipant",
+      "Transitions": {}
+    },
+    {
+      "Parameters": {
+        "LambdaFunctionARN": "arn:aws:lambda:us-west-2:292335388446:function:OrderStatusFunc",
+        "InvocationTimeLimitSeconds": "8",
+        "InvocationType": "SYNCHRONOUS",
+        "LambdaInvocationAttributes": {
+          "OrderNo": "$.StoredCustomerInput"
+        },
+        "ResponseValidation": {
+          "ResponseType": "STRING_MAP"
+        }
+      },
+      "Identifier": "1baff22a-7fae-4c42-a8bf-b77d00a50e72",
+      "Type": "InvokeLambdaFunction",
+      "Transitions": {
+        "NextAction": "836b1932-64db-4db1-8fb3-2e088f092f1b",
+        "Errors": [
+          {
+            "NextAction": "78d06790-5edd-438b-8176-45eea2c0c99c",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "Text": "The status of your Order is is $.External.OrderStatus and the expected delivery date is $.External.ExpectedDeliveryDate"
+      },
+      "Identifier": "836b1932-64db-4db1-8fb3-2e088f092f1b",
+      "Type": "MessageParticipant",
+      "Transitions": {
+        "NextAction": "78d06790-5edd-438b-8176-45eea2c0c99c",
+        "Errors": [
+          {
+            "NextAction": "78d06790-5edd-438b-8176-45eea2c0c99c",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    }
+  ]
+}
