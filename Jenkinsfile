@@ -3,7 +3,7 @@ pipeline {
     environment {
         AWS_REGION = 'us-west-2'
         LAMBDA_FUNCTION = 'OrderStatusFunc'
-        CONNECT_INSTANCE_ID = '5b494e85-ab6a-45ca-94f5-5e645ee1a7e3'  // UPDATE THIS WITH YOUR REAL INSTANCE ID!
+        CONNECT_INSTANCE_ID = '5b494e85-ab6a-45ca-94f5-5e645ee1a7e3'
         PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/sbin:${env.PATH}"
     }
     
@@ -78,7 +78,6 @@ pipeline {
                         echo "Region: ${AWS_REGION}"
                         echo ""
                         
-                        # Update Lambda function code (suppress JSON output to avoid parsing issues)
                         aws lambda update-function-code \
                           --function-name ${LAMBDA_FUNCTION} \
                           --zip-file fileb://function.zip \
@@ -87,7 +86,6 @@ pipeline {
                         
                         echo "Lambda code updated. Waiting for function to be ready..."
                         
-                        # Wait for update to complete
                         aws lambda wait function-updated \
                           --function-name ${LAMBDA_FUNCTION} \
                           --region ${AWS_REGION}
@@ -123,17 +121,14 @@ pipeline {
                         echo "Region: ${AWS_REGION}"
                         echo ""
                         
-                        # Check if jq is installed
                         if ! command -v jq &> /dev/null; then
                             echo "❌ ERROR: jq is not installed!"
                             echo "Please install jq using: brew install jq"
                             exit 1
                         fi
                         
-                        # Navigate to flows directory
                         cd dev/flows
                         
-                        # Process order.json only
                         FLOW_FILE="order.json"
                         
                         if [ ! -f "$FLOW_FILE" ]; then
@@ -145,13 +140,11 @@ pipeline {
                         echo "📄 Processing: $FLOW_FILE"
                         echo "========================================"
                         
-                        # Extract flow name from JSON
-                        FLOW_NAME=$(jq -r '.Name // .name // empty' "$FLOW_FILE")
+                        # Extract flow name from Metadata.name (corrected path)
+                        FLOW_NAME=$(jq -r '.Metadata.name // .name // .Name // empty' "$FLOW_FILE")
                         
                         if [ -z "$FLOW_NAME" ]; then
                             echo "❌ ERROR: Could not extract flow name from order.json"
-                            echo "File contents:"
-                            cat "$FLOW_FILE" | jq '.' || cat "$FLOW_FILE"
                             exit 1
                         fi
                         
@@ -164,26 +157,24 @@ pipeline {
                             --instance-id ${CONNECT_INSTANCE_ID} \
                             --region ${AWS_REGION} \
                             --query "ContactFlowSummaryList[?Name=='${FLOW_NAME}'].Id" \
-                            --output text 2>&1 | tr -d '[:space:]')
+                            --output text 2>&1)
                         
                         if [ $? -ne 0 ]; then
                             echo "❌ ERROR: Failed to list contact flows"
                             echo "Error: $FLOW_ID"
-                            echo ""
-                            echo "Please verify:"
-                            echo "1. Your Connect Instance ID is correct: ${CONNECT_INSTANCE_ID}"
-                            echo "2. Your AWS credentials have Connect permissions"
                             exit 1
                         fi
                         
+                        FLOW_ID=$(echo "$FLOW_ID" | tr -d '[:space:]')
                         echo "Flow ID from Connect: '$FLOW_ID'"
+                        echo ""
                         
-                        # Extract the flow content
-                        FLOW_CONTENT=$(jq -c '.Content // .' "$FLOW_FILE")
+                        # The entire JSON file is the flow content for Amazon Connect
+                        FLOW_CONTENT=$(jq -c '.' "$FLOW_FILE")
                         
-                        if [ -z "$FLOW_ID" ] || [ "$FLOW_ID" == "None" ] || [ "$FLOW_ID" == "" ]; then
-                            echo ""
+                        if [ -z "$FLOW_ID" ] || [ "$FLOW_ID" == "None" ]; then
                             echo "Flow does not exist. Creating new flow..."
+                            echo ""
                             
                             CREATE_RESULT=$(aws connect create-contact-flow \
                               --instance-id ${CONNECT_INSTANCE_ID} \
@@ -194,7 +185,7 @@ pipeline {
                             
                             if [ $? -eq 0 ]; then
                                 NEW_FLOW_ID=$(echo "$CREATE_RESULT" | jq -r '.ContactFlowId // .Id // empty' 2>/dev/null)
-                                echo "✅ SUCCESS: Created flow"
+                                echo "✅ SUCCESS: Created flow in Amazon Connect"
                                 echo "   Flow Name: $FLOW_NAME"
                                 echo "   Flow ID: $NEW_FLOW_ID"
                             else
@@ -203,9 +194,8 @@ pipeline {
                                 exit 1
                             fi
                         else
+                            echo "Flow exists. Updating flow content..."
                             echo ""
-                            echo "Flow exists with ID: $FLOW_ID"
-                            echo "Updating flow content..."
                             
                             UPDATE_RESULT=$(aws connect update-contact-flow-content \
                               --instance-id ${CONNECT_INSTANCE_ID} \
@@ -214,7 +204,7 @@ pipeline {
                               --region ${AWS_REGION} 2>&1)
                             
                             if [ $? -eq 0 ]; then
-                                echo "✅ SUCCESS: Updated flow"
+                                echo "✅ SUCCESS: Updated flow in Amazon Connect"
                                 echo "   Flow Name: $FLOW_NAME"
                                 echo "   Flow ID: $FLOW_ID"
                             else
@@ -236,7 +226,8 @@ pipeline {
     post {
         success {
             echo '🎉 ✅ DEPLOYMENT COMPLETED SUCCESSFULLY!'
-            echo 'Lambda function updated and order.json deployed to Amazon Connect.'
+            echo 'Lambda function: OrderStatusFunc updated'
+            echo 'Contact flow: JCATechCo - Order Status deployed to Amazon Connect'
         }
         failure {
             echo '❌ DEPLOYMENT FAILED'
