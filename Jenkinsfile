@@ -29,7 +29,6 @@ pipeline {
         stage('Package Lambda') {
             steps {
                 sh '''
-                    echo "=== Packaging Lambda Function ==="
                     rm -f function.zip
 
                     if [ ! -f import-json.py ]; then
@@ -54,20 +53,22 @@ pipeline {
                     ]
                 ]) {
                     sh '''
-                        echo "AWS CLI version:"
+                        # 🔒 HARD FIX: override poisoned Jenkins env
+                        export AWS_DEFAULT_OUTPUT=json
+
                         aws --version
 
                         aws lambda update-function-code \
-                          --function-name ${LAMBDA_FUNCTION} \
+                          --function-name "${LAMBDA_FUNCTION}" \
                           --zip-file fileb://function.zip \
-                          --region ${AWS_REGION} \
+                          --region "${AWS_REGION}" \
                           --no-cli-pager > /dev/null
 
                         aws lambda wait function-updated \
-                          --function-name ${LAMBDA_FUNCTION} \
-                          --region ${AWS_REGION}
+                          --function-name "${LAMBDA_FUNCTION}" \
+                          --region "${AWS_REGION}"
 
-                        echo "✅ Lambda deployed"
+                        echo "✅ Lambda deployed successfully"
                     '''
                 }
             }
@@ -84,36 +85,43 @@ pipeline {
                     ]
                 ]) {
                     sh '''
+                        export AWS_DEFAULT_OUTPUT=json
+
                         command -v jq >/dev/null || exit 1
                         command -v aws >/dev/null || exit 1
 
                         cd dev/flows
 
                         FLOW_ID=$(aws connect list-contact-flows \
-                          --instance-id ${CONNECT_INSTANCE_ID} \
-                          --region ${AWS_REGION} \
+                          --instance-id "${CONNECT_INSTANCE_ID}" \
+                          --region "${AWS_REGION}" \
                           --query "ContactFlowSummaryList[?Name=='${FLOW_NAME}'].Id" \
                           --output text)
 
                         FLOW_ID=$(echo "$FLOW_ID" | tr -d '[:space:]')
-                        FLOW_CONTENT=$(jq -c '.Content' ${FLOW_FILE})
+                        FLOW_CONTENT=$(jq -c '.Content' "${FLOW_FILE}")
+
+                        if [ -z "$FLOW_CONTENT" ] || [ "$FLOW_CONTENT" = "null" ]; then
+                            echo "❌ Invalid flow content"
+                            exit 1
+                        fi
 
                         if [ -z "$FLOW_ID" ] || [ "$FLOW_ID" = "None" ]; then
                             aws connect create-contact-flow \
-                              --instance-id ${CONNECT_INSTANCE_ID} \
+                              --instance-id "${CONNECT_INSTANCE_ID}" \
                               --name "${FLOW_NAME}" \
                               --type CONTACT_FLOW \
                               --content "$FLOW_CONTENT" \
-                              --region ${AWS_REGION}
+                              --region "${AWS_REGION}"
                         else
                             aws connect update-contact-flow-content \
-                              --instance-id ${CONNECT_INSTANCE_ID} \
+                              --instance-id "${CONNECT_INSTANCE_ID}" \
                               --contact-flow-id "$FLOW_ID" \
                               --content "$FLOW_CONTENT" \
-                              --region ${AWS_REGION}
+                              --region "${AWS_REGION}"
                         fi
 
-                        echo "✅ Contact Flow deployed"
+                        echo "✅ Contact flow deployed successfully"
                     '''
                 }
             }
@@ -121,6 +129,8 @@ pipeline {
     }
 
     post {
-        always { cleanWs() }
+        always {
+            cleanWs()
+        }
     }
 }
