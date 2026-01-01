@@ -168,55 +168,62 @@ pipeline {
                         echo "Flow ID from Connect: $FLOW_ID"
                         echo ""
                         
-                        # Save flow content to a temporary file (IMPORTANT FIX!)
+                        # Save flow content to file
                         jq -c '.' "$FLOW_FILE" > /tmp/flow_content.json
                         
                         if [ -z "$FLOW_ID" ] || [ "$FLOW_ID" == "None" ]; then
                             echo "Creating new flow..."
                             
-                            CREATE_RESULT=$(aws connect create-contact-flow \
+                            # Suppress output completely and check exit code
+                            if aws connect create-contact-flow \
                               --instance-id ${CONNECT_INSTANCE_ID} \
                               --name "$FLOW_NAME" \
                               --type CONTACT_FLOW \
                               --content file:///tmp/flow_content.json \
-                              --region ${AWS_REGION} 2>&1)
-                            
-                            if [ $? -eq 0 ]; then
-                                NEW_FLOW_ID=$(echo "$CREATE_RESULT" | jq -r '.ContactFlowId // .Id // empty' 2>/dev/null)
+                              --region ${AWS_REGION} \
+                              --no-cli-pager \
+                              --output json > /tmp/create_result.json 2>&1; then
+                                
+                                NEW_FLOW_ID=$(jq -r '.ContactFlowId // .Id // empty' /tmp/create_result.json 2>/dev/null)
                                 echo ""
                                 echo "✅ SUCCESS: Created flow in Amazon Connect"
                                 echo "   Flow Name: $FLOW_NAME"
                                 echo "   Flow ID: $NEW_FLOW_ID"
                             else
+                                EXIT_CODE=$?
                                 echo ""
-                                echo "❌ ERROR: Failed to create flow"
-                                echo "$CREATE_RESULT"
+                                echo "❌ ERROR: Failed to create flow (exit code: $EXIT_CODE)"
+                                cat /tmp/create_result.json
                                 exit 1
                             fi
                         else
                             echo "Flow exists. Updating flow content..."
                             
-                            UPDATE_RESULT=$(aws connect update-contact-flow-content \
+                            # Suppress output completely and check exit code
+                            if aws connect update-contact-flow-content \
                               --instance-id ${CONNECT_INSTANCE_ID} \
                               --contact-flow-id "$FLOW_ID" \
                               --content file:///tmp/flow_content.json \
-                              --region ${AWS_REGION} 2>&1)
-                            
-                            if [ $? -eq 0 ]; then
+                              --region ${AWS_REGION} \
+                              --no-cli-pager \
+                              2>&1 > /tmp/update_result.txt; then
+                                
                                 echo ""
                                 echo "✅ SUCCESS: Updated flow in Amazon Connect"
                                 echo "   Flow Name: $FLOW_NAME"
                                 echo "   Flow ID: $FLOW_ID"
                             else
+                                EXIT_CODE=$?
                                 echo ""
-                                echo "❌ ERROR: Failed to update flow"
-                                echo "$UPDATE_RESULT"
+                                echo "❌ ERROR: Failed to update flow (exit code: $EXIT_CODE)"
+                                echo "Error details:"
+                                cat /tmp/update_result.txt
                                 exit 1
                             fi
                         fi
                         
-                        # Clean up temp file
-                        rm -f /tmp/flow_content.json
+                        # Clean up temp files
+                        rm -f /tmp/flow_content.json /tmp/update_result.txt /tmp/create_result.json
                         
                         echo "========================================"
                         echo ""
@@ -235,7 +242,7 @@ pipeline {
             echo '  ✅ Lambda function: OrderStatusFunc updated'
             echo '  ✅ Contact flow: JCATechCo - Order Status deployed to Amazon Connect'
             echo ''
-            echo 'Your Contact Flow as Code pipeline is now working!'
+            echo '🚀 Your Contact Flow as Code CI/CD pipeline is now fully operational!'
         }
         failure {
             echo '❌ DEPLOYMENT FAILED'
