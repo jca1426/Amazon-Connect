@@ -1,18 +1,20 @@
 pipeline {
     agent any
+
     environment {
         AWS_REGION = 'us-west-2'
         LAMBDA_FUNCTION = 'OrderStatusFunc'
         CONNECT_INSTANCE_ID = '5b494e85-ab6a-45ca-94f5-5e645ee1a7e3'
         PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/sbin:${env.PATH}"
     }
-    
+
     stages {
+
         stage('Checkout') {
             steps {
-                git branch: 'feature/aws-deploy', 
+                git branch: 'feature/aws-deploy',
                     url: 'https://github.com/jca1426/Amazon-Connect.git'
-                
+
                 sh '''
                     echo "=== Repository Structure ==="
                     ls -la
@@ -22,46 +24,45 @@ pipeline {
                 '''
             }
         }
-        
+
         stage('Package Lambda') {
             steps {
                 sh '''
                     echo "=== Packaging Lambda Function ==="
-                    
+
                     rm -f function.zip
                     rm -rf package
-                    
+
                     if [ ! -f import-json.py ]; then
-                        echo "ERROR: import-json.py not found!"
+                        echo "❌ ERROR: import-json.py not found!"
                         exit 1
                     fi
-                    
+
                     echo "Found Lambda function: import-json.py"
-                    
+
                     if [ -f requirements.txt ]; then
                         echo "Installing Python dependencies..."
-                        pip3 install -r requirements.txt -t ./package || true
+                        pip3 install -r requirements.txt -t ./package
                     fi
-                    
+
                     echo "Creating deployment package..."
                     zip function.zip import-json.py
-                    
+
                     if [ -d package ]; then
-                        echo "Adding Python dependencies..."
                         cd package && zip -r ../function.zip . && cd ..
                     fi
-                    
+
                     echo ""
                     echo "=== Package Contents ==="
                     unzip -l function.zip | head -20
-                    
+
                     echo ""
                     echo "=== Package Size ==="
                     ls -lh function.zip
                 '''
             }
         }
-        
+
         stage('Deploy to Lambda') {
             steps {
                 withCredentials([
@@ -77,129 +78,128 @@ pipeline {
                         echo "Function: ${LAMBDA_FUNCTION}"
                         echo "Region: ${AWS_REGION}"
                         echo ""
-                        
+
                         aws lambda update-function-code \
                           --function-name ${LAMBDA_FUNCTION} \
                           --zip-file fileb://function.zip \
                           --region ${AWS_REGION} \
-                          --output text > /dev/null
-                        
-                        echo "Lambda code updated. Waiting for function to be ready..."
-                        
+                          --no-cli-pager
+
+                        echo "Waiting for Lambda to finish updating..."
                         aws lambda wait function-updated \
                           --function-name ${LAMBDA_FUNCTION} \
                           --region ${AWS_REGION}
-                        
+
                         echo ""
-                        echo "=== Lambda Function Details ==="
                         aws lambda get-function-configuration \
                           --function-name ${LAMBDA_FUNCTION} \
                           --region ${AWS_REGION} \
                           --output table \
                           --query '{Name:FunctionName,Runtime:Runtime,Modified:LastModified,Size:CodeSize}'
-                        
+
                         echo ""
-                        echo "✅ Lambda function deployed successfully!"
+                        echo "✅ Lambda deployed successfully!"
                     '''
                 }
             }
         }
-        
+
         stage('Deploy main.json to Amazon Connect') {
-    steps {
-        withCredentials([
-            [
-                $class: 'AmazonWebServicesCredentialsBinding',
-                credentialsId: 'aws-credentials',
-                accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-            ]
-        ]) {
-            sh '''
-                echo "=== Deploying main.json to Amazon Connect ==="
-                echo "Instance ID: ${CONNECT_INSTANCE_ID}"
-                echo "Region: ${AWS_REGION}"
-                echo ""
+            steps {
+                withCredentials([
+                    [
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'aws-credentials',
+                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                    ]
+                ]) {
+                    sh '''
+                        echo "=== Deploying main.json to Amazon Connect ==="
+                        echo "Instance ID: ${CONNECT_INSTANCE_ID}"
+                        echo "Region: ${AWS_REGION}"
+                        echo ""
 
-                cd dev/flows
+                        if ! command -v jq &> /dev/null; then
+                            echo "❌ ERROR: jq is not installed!"
+                            exit 1
+                        fi
 
-                FLOW_FILE="main.json"
-                FLOW_NAME="JCAtechco - Main Flow"
+                        cd dev/flows
 
-                if [ ! -f "$FLOW_FILE" ]; then
-                    echo "❌ ERROR: main.json not found!"
-                    exit 1
-                fi
+                        FLOW_FILE="main.json"
+                        FLOW_NAME="JCAtechco - Main Flow"
 
-                echo "Flow Name: $FLOW_NAME"
-                echo ""
+                        if [ ! -f "$FLOW_FILE" ]; then
+                            echo "❌ ERROR: main.json not found!"
+                            exit 1
+                        fi
 
-                echo "Checking if flow exists in Amazon Connect..."
-                FLOW_ID=$(aws connect list-contact-flows \
-                    --instance-id ${CONNECT_INSTANCE_ID} \
-                    --region ${AWS_REGION} \
-                    --query "ContactFlowSummaryList[?Name=='${FLOW_NAME}'].Id" \
-                    --output text)
+                        echo "Flow Name: $FLOW_NAME"
+                        echo ""
 
-                FLOW_ID=$(echo "$FLOW_ID" | tr -d '[:space:]')
-                echo "Flow ID from Connect: $FLOW_ID"
-                echo ""
+                        echo "Checking if flow exists..."
+                        FLOW_ID=$(aws connect list-contact-flows \
+                            --instance-id ${CONNECT_INSTANCE_ID} \
+                            --region ${AWS_REGION} \
+                            --query "ContactFlowSummaryList[?Name=='${FLOW_NAME}'].Id" \
+                            --output text)
 
-                echo "Extracting flow Content only..."
-                jq -c '.Content' "$FLOW_FILE" > /tmp/flow_content.json
+                        FLOW_ID=$(echo "$FLOW_ID" | tr -d '[:space:]')
+                        echo "Flow ID: $FLOW_ID"
+                        echo ""
 
-                if [ ! -s /tmp/flow_content.json ]; then
-                    echo "❌ ERROR: Flow Content is empty!"
-                    exit 1
-                fi
+                        echo "Extracting .Content only (required by Amazon Connect)..."
+                        jq -c '.Content' "$FLOW_FILE" > /tmp/flow_content.json
 
-                if [ -z "$FLOW_ID" ] || [ "$FLOW_ID" = "None" ]; then
-                    echo "Creating new contact flow..."
+                        if [ ! -s /tmp/flow_content.json ]; then
+                            echo "❌ ERROR: Flow content is empty!"
+                            exit 1
+                        fi
 
-                    aws connect create-contact-flow \
-                        --instance-id ${CONNECT_INSTANCE_ID} \
-                        --name "$FLOW_NAME" \
-                        --type CONTACT_FLOW \
-                        --content file:///tmp/flow_content.json \
-                        --region ${AWS_REGION} \
-                        --no-cli-pager
+                        if [ -z "$FLOW_ID" ] || [ "$FLOW_ID" = "None" ]; then
+                            echo "Creating new contact flow..."
 
-                    echo "✅ Created new flow: $FLOW_NAME"
-                else
-                    echo "Updating existing contact flow..."
+                            aws connect create-contact-flow \
+                                --instance-id ${CONNECT_INSTANCE_ID} \
+                                --name "$FLOW_NAME" \
+                                --type CONTACT_FLOW \
+                                --content file:///tmp/flow_content.json \
+                                --region ${AWS_REGION} \
+                                --no-cli-pager
 
-                    aws connect update-contact-flow-content \
-                        --instance-id ${CONNECT_INSTANCE_ID} \
-                        --contact-flow-id "$FLOW_ID" \
-                        --content file:///tmp/flow_content.json \
-                        --region ${AWS_REGION} \
-                        --no-cli-pager
+                            echo "✅ Flow created successfully!"
+                        else
+                            echo "Updating existing contact flow..."
 
-                    echo "✅ Updated flow: $FLOW_NAME"
-                fi
+                            aws connect update-contact-flow-content \
+                                --instance-id ${CONNECT_INSTANCE_ID} \
+                                --contact-flow-id "$FLOW_ID" \
+                                --content file:///tmp/flow_content.json \
+                                --region ${AWS_REGION} \
+                                --no-cli-pager
 
-                rm -f /tmp/flow_content.json
-                echo ""
-                echo "✅ main.json deployed successfully!"
-            '''
+                            echo "✅ Flow updated successfully!"
+                        fi
+
+                        rm -f /tmp/flow_content.json
+                        echo ""
+                        echo "✅ main.json deployed to Amazon Connect!"
+                    '''
+                }
+            }
         }
     }
-}
 
-    
     post {
         success {
-            echo '🎉 ✅ DEPLOYMENT COMPLETED SUCCESSFULLY!'
-            echo ''
-            echo 'Summary:'
-            echo '  ✅ Lambda function: OrderStatusFunc updated'
-            echo '  ✅ Contact flow: JCATechCo - Order Status deployed to Amazon Connect'
-            echo ''
-            echo '🚀 Your Contact Flow as Code CI/CD pipeline is now fully operational!'
+            echo '🎉 DEPLOYMENT COMPLETED SUCCESSFULLY'
+            echo '✅ Lambda updated'
+            echo '✅ Amazon Connect Main Flow deployed'
         }
         failure {
             echo '❌ DEPLOYMENT FAILED'
-            echo 'Please check the logs above for error details.'
+            echo 'Please review the logs above'
         }
         always {
             cleanWs()
