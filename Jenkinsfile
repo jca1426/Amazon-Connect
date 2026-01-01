@@ -83,21 +83,16 @@ pipeline {
                           --function-name ${LAMBDA_FUNCTION} \
                           --zip-file fileb://function.zip \
                           --region ${AWS_REGION} \
-                          --no-cli-pager
+                          --output json \
+                          --no-cli-pager > /dev/null
 
-                        echo "Waiting for Lambda to finish updating..."
+                        echo "Waiting for Lambda update to complete..."
+
                         aws lambda wait function-updated \
                           --function-name ${LAMBDA_FUNCTION} \
-                          --region ${AWS_REGION}
-
-                        echo ""
-                        aws lambda get-function-configuration \
-                          --function-name ${LAMBDA_FUNCTION} \
                           --region ${AWS_REGION} \
-                          --output table \
-                          --query '{Name:FunctionName,Runtime:Runtime,Modified:LastModified,Size:CodeSize}'
+                          --no-cli-pager
 
-                        echo ""
                         echo "✅ Lambda deployed successfully!"
                     '''
                 }
@@ -138,7 +133,7 @@ pipeline {
                         echo "Flow Name: $FLOW_NAME"
                         echo ""
 
-                        echo "Checking if flow exists..."
+                        echo "Checking if flow exists in Amazon Connect..."
                         FLOW_ID=$(aws connect list-contact-flows \
                             --instance-id ${CONNECT_INSTANCE_ID} \
                             --region ${AWS_REGION} \
@@ -149,7 +144,7 @@ pipeline {
                         echo "Flow ID: $FLOW_ID"
                         echo ""
 
-                        echo "Extracting .Content only (required by Amazon Connect)..."
+                        echo "Extracting flow Content only..."
                         jq -c '.Content' "$FLOW_FILE" > /tmp/flow_content.json
 
                         if [ ! -s /tmp/flow_content.json ]; then
@@ -166,7 +161,8 @@ pipeline {
                                 --type CONTACT_FLOW \
                                 --content file:///tmp/flow_content.json \
                                 --region ${AWS_REGION} \
-                                --no-cli-pager
+                                --output json \
+                                --no-cli-pager > /dev/null
 
                             echo "✅ Flow created successfully!"
                         else
@@ -177,7 +173,8 @@ pipeline {
                                 --contact-flow-id "$FLOW_ID" \
                                 --content file:///tmp/flow_content.json \
                                 --region ${AWS_REGION} \
-                                --no-cli-pager
+                                --output json \
+                                --no-cli-pager > /dev/null
 
                             echo "✅ Flow updated successfully!"
                         fi
