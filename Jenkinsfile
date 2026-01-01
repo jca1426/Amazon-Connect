@@ -3,18 +3,17 @@ pipeline {
 
     environment {
         AWS_REGION = 'us-west-2'
-        LAMBDA_FUNCTION = 'OrderStatusFunc'
         CONNECT_INSTANCE_ID = '5b494e85-ab6a-45ca-94f5-5e645ee1a7e3'
-        PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/sbin:${env.PATH}"
+        LAMBDA_FUNCTION = 'OrderStatusFunc'
+        FLOW_NAME = 'JCAtechco - Main Flow'
+        FLOW_FILE = 'main.json'
     }
 
     stages {
 
         stage('Checkout') {
             steps {
-                git branch: 'feature/aws-deploy',
-                    url: 'https://github.com/jca1426/Amazon-Connect.git'
-
+                checkout scm
                 sh '''
                     echo "=== Repository Structure ==="
                     ls -la
@@ -29,28 +28,16 @@ pipeline {
             steps {
                 sh '''
                     echo "=== Packaging Lambda Function ==="
-
                     rm -f function.zip
                     rm -rf package
 
                     if [ ! -f import-json.py ]; then
-                        echo "❌ ERROR: import-json.py not found!"
+                        echo "❌ import-json.py not found"
                         exit 1
                     fi
 
                     echo "Found Lambda function: import-json.py"
-
-                    if [ -f requirements.txt ]; then
-                        echo "Installing Python dependencies..."
-                        pip3 install -r requirements.txt -t ./package
-                    fi
-
-                    echo "Creating deployment package..."
                     zip function.zip import-json.py
-
-                    if [ -d package ]; then
-                        cd package && zip -r ../function.zip . && cd ..
-                    fi
 
                     echo ""
                     echo "=== Package Contents ==="
@@ -115,22 +102,19 @@ pipeline {
                         echo "Region: ${AWS_REGION}"
                         echo ""
 
-                        if ! command -v jq &> /dev/null; then
-                            echo "❌ ERROR: jq is not installed!"
+                        command -v jq >/dev/null 2>&1 || {
+                            echo "❌ jq is required but not installed"
                             exit 1
-                        fi
+                        }
 
                         cd dev/flows
 
-                        FLOW_FILE="main.json"
-                        FLOW_NAME="JCAtechco - Main Flow"
-
-                        if [ ! -f "$FLOW_FILE" ]; then
-                            echo "❌ ERROR: main.json not found!"
+                        if [ ! -f "${FLOW_FILE}" ]; then
+                            echo "❌ Flow file ${FLOW_FILE} not found"
                             exit 1
                         fi
 
-                        echo "Flow Name: $FLOW_NAME"
+                        echo "Flow Name: ${FLOW_NAME}"
                         echo ""
 
                         echo "Checking if flow exists in Amazon Connect..."
@@ -141,14 +125,15 @@ pipeline {
                             --output text)
 
                         FLOW_ID=$(echo "$FLOW_ID" | tr -d '[:space:]')
-                        echo "Flow ID: $FLOW_ID"
+
+                        echo "Flow ID: ${FLOW_ID}"
                         echo ""
 
-                        echo "Extracting flow Content only..."
-                        jq -c '.Content' "$FLOW_FILE" > /tmp/flow_content.json
+                        echo "Extracting flow Content..."
+                        FLOW_CONTENT=$(jq -c '.Content' "${FLOW_FILE}")
 
-                        if [ ! -s /tmp/flow_content.json ]; then
-                            echo "❌ ERROR: Flow content is empty!"
+                        if [ -z "$FLOW_CONTENT" ] || [ "$FLOW_CONTENT" = "null" ]; then
+                            echo "❌ Flow Content is empty or invalid"
                             exit 1
                         fi
 
@@ -157,31 +142,27 @@ pipeline {
 
                             aws connect create-contact-flow \
                                 --instance-id ${CONNECT_INSTANCE_ID} \
-                                --name "$FLOW_NAME" \
+                                --name "${FLOW_NAME}" \
                                 --type CONTACT_FLOW \
-                                --content file:///tmp/flow_content.json \
+                                --content "$FLOW_CONTENT" \
                                 --region ${AWS_REGION} \
                                 --output json \
                                 --no-cli-pager > /dev/null
 
-                            echo "✅ Flow created successfully!"
+                            echo "✅ Contact flow created successfully!"
                         else
                             echo "Updating existing contact flow..."
 
                             aws connect update-contact-flow-content \
                                 --instance-id ${CONNECT_INSTANCE_ID} \
                                 --contact-flow-id "$FLOW_ID" \
-                                --content file:///tmp/flow_content.json \
+                                --content "$FLOW_CONTENT" \
                                 --region ${AWS_REGION} \
                                 --output json \
                                 --no-cli-pager > /dev/null
 
-                            echo "✅ Flow updated successfully!"
+                            echo "✅ Contact flow updated successfully!"
                         fi
-
-                        rm -f /tmp/flow_content.json
-                        echo ""
-                        echo "✅ main.json deployed to Amazon Connect!"
                     '''
                 }
             }
@@ -190,13 +171,11 @@ pipeline {
 
     post {
         success {
-            echo '🎉 DEPLOYMENT COMPLETED SUCCESSFULLY'
-            echo '✅ Lambda updated'
-            echo '✅ Amazon Connect Main Flow deployed'
+            echo "🎉 DEPLOYMENT SUCCESSFUL"
         }
         failure {
-            echo '❌ DEPLOYMENT FAILED'
-            echo 'Please review the logs above'
+            echo "❌ DEPLOYMENT FAILED"
+            echo "Please review the logs above"
         }
         always {
             cleanWs()
