@@ -6,7 +6,7 @@ pipeline {
     CONNECT_INSTANCE_ID = '5b494e85-ab6a-45ca-94f5-5e645ee1a7e3'
     CONTACT_FLOW_NAME = 'JCAtechco - Main Flow'
     LAMBDA_FUNCTION_NAME = 'OrderStatusFunc'
-    AWS_CLI = '/opt/homebrew/bin/aws'
+    AWS_CLI = '/usr/local/bin/aws'
   }
 
   stages {
