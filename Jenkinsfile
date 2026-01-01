@@ -123,7 +123,6 @@ pipeline {
                         
                         if ! command -v jq &> /dev/null; then
                             echo "❌ ERROR: jq is not installed!"
-                            echo "Please install jq using: brew install jq"
                             exit 1
                         fi
                         
@@ -140,18 +139,18 @@ pipeline {
                         echo "📄 Processing: $FLOW_FILE"
                         echo "========================================"
                         
-                        # Extract flow name from Metadata.name (corrected path)
+                        # Extract flow name
                         FLOW_NAME=$(jq -r '.Metadata.name // .name // .Name // empty' "$FLOW_FILE")
                         
                         if [ -z "$FLOW_NAME" ]; then
-                            echo "❌ ERROR: Could not extract flow name from order.json"
+                            echo "❌ ERROR: Could not extract flow name"
                             exit 1
                         fi
                         
                         echo "Flow Name: $FLOW_NAME"
                         echo ""
                         
-                        # Check if flow already exists in Amazon Connect
+                        # Check if flow exists
                         echo "Checking if flow exists in Amazon Connect..."
                         FLOW_ID=$(aws connect list-contact-flows \
                             --instance-id ${CONNECT_INSTANCE_ID} \
@@ -166,53 +165,58 @@ pipeline {
                         fi
                         
                         FLOW_ID=$(echo "$FLOW_ID" | tr -d '[:space:]')
-                        echo "Flow ID from Connect: '$FLOW_ID'"
+                        echo "Flow ID from Connect: $FLOW_ID"
                         echo ""
                         
-                        # The entire JSON file is the flow content for Amazon Connect
-                        FLOW_CONTENT=$(jq -c '.' "$FLOW_FILE")
+                        # Save flow content to a temporary file (IMPORTANT FIX!)
+                        jq -c '.' "$FLOW_FILE" > /tmp/flow_content.json
                         
                         if [ -z "$FLOW_ID" ] || [ "$FLOW_ID" == "None" ]; then
-                            echo "Flow does not exist. Creating new flow..."
-                            echo ""
+                            echo "Creating new flow..."
                             
                             CREATE_RESULT=$(aws connect create-contact-flow \
                               --instance-id ${CONNECT_INSTANCE_ID} \
                               --name "$FLOW_NAME" \
                               --type CONTACT_FLOW \
-                              --content "$FLOW_CONTENT" \
+                              --content file:///tmp/flow_content.json \
                               --region ${AWS_REGION} 2>&1)
                             
                             if [ $? -eq 0 ]; then
                                 NEW_FLOW_ID=$(echo "$CREATE_RESULT" | jq -r '.ContactFlowId // .Id // empty' 2>/dev/null)
+                                echo ""
                                 echo "✅ SUCCESS: Created flow in Amazon Connect"
                                 echo "   Flow Name: $FLOW_NAME"
                                 echo "   Flow ID: $NEW_FLOW_ID"
                             else
+                                echo ""
                                 echo "❌ ERROR: Failed to create flow"
-                                echo "   Error: $CREATE_RESULT"
+                                echo "$CREATE_RESULT"
                                 exit 1
                             fi
                         else
                             echo "Flow exists. Updating flow content..."
-                            echo ""
                             
                             UPDATE_RESULT=$(aws connect update-contact-flow-content \
                               --instance-id ${CONNECT_INSTANCE_ID} \
                               --contact-flow-id "$FLOW_ID" \
-                              --content "$FLOW_CONTENT" \
+                              --content file:///tmp/flow_content.json \
                               --region ${AWS_REGION} 2>&1)
                             
                             if [ $? -eq 0 ]; then
+                                echo ""
                                 echo "✅ SUCCESS: Updated flow in Amazon Connect"
                                 echo "   Flow Name: $FLOW_NAME"
                                 echo "   Flow ID: $FLOW_ID"
                             else
+                                echo ""
                                 echo "❌ ERROR: Failed to update flow"
-                                echo "   Error: $UPDATE_RESULT"
+                                echo "$UPDATE_RESULT"
                                 exit 1
                             fi
                         fi
+                        
+                        # Clean up temp file
+                        rm -f /tmp/flow_content.json
                         
                         echo "========================================"
                         echo ""
@@ -226,8 +230,12 @@ pipeline {
     post {
         success {
             echo '🎉 ✅ DEPLOYMENT COMPLETED SUCCESSFULLY!'
-            echo 'Lambda function: OrderStatusFunc updated'
-            echo 'Contact flow: JCATechCo - Order Status deployed to Amazon Connect'
+            echo ''
+            echo 'Summary:'
+            echo '  ✅ Lambda function: OrderStatusFunc updated'
+            echo '  ✅ Contact flow: JCATechCo - Order Status deployed to Amazon Connect'
+            echo ''
+            echo 'Your Contact Flow as Code pipeline is now working!'
         }
         failure {
             echo '❌ DEPLOYMENT FAILED'
