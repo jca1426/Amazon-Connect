@@ -1,0 +1,16 @@
+{
+  "version": "2.5.0",
+  "summary": {
+    "title": "New Threat Model",
+    "owner": "JCA",
+    "description": "",
+    "id": 0
+  },
+  "detail": {
+    "contributors": [],
+    "diagrams": [],
+    "diagramTop": 0,
+    "reviewer": "JCA2",
+    "threatTop": 0
+  }
+}
